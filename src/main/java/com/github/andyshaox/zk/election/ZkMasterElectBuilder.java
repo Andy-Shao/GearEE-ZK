@@ -1,6 +1,7 @@
 package com.github.andyshaox.zk.election;
 
 import com.github.andyshao.election.Election;
+import com.github.andyshao.election.MasterElectAlgorithm;
 import com.github.andyshao.util.EntityOperation;
 
 /**
@@ -18,6 +19,7 @@ public class ZkMasterElectBuilder{
     private int sessionTimeOut = 15000;
     private String connectString = "localhost:2181";
     private String electNodeName = "_candidate_";
+    private MasterElectAlgorithm masterElectAlgorithm = new ZkMasterElectAlgorithm();
     
     ZkMasterElectBuilder copy() {
         ZkMasterElectBuilder builder = new ZkMasterElectBuilder();
@@ -49,12 +51,19 @@ public class ZkMasterElectBuilder{
         return result;
     }
     
+    public ZkMasterElectBuilder masterElectAlgorithm(MasterElectAlgorithm algorithm) {
+        ZkMasterElectBuilder result = this.copy();
+        result.masterElectAlgorithm = algorithm;
+        return result;
+    }
+    
     public Election build() {
         ZkMasterElection result = new ZkMasterElection();
         result.setLeaderElectPath(leaderElectPath);
         result.setConnectString(connectString);
         result.setSessionTimeOut(sessionTimeOut);
         result.setElectNodeName(electNodeName);
+        result.setMasterElectAlgorithm(masterElectAlgorithm);
         return result;
     }
 }

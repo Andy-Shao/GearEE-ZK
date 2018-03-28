@@ -22,6 +22,7 @@ import com.github.andyshao.election.Election;
 import com.github.andyshao.election.ElectionException;
 import com.github.andyshao.election.ElectionNode;
 import com.github.andyshao.election.MasterElect;
+import com.github.andyshao.election.MasterElectAlgorithm;
 import com.github.andyshao.exception.Result;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
@@ -49,6 +50,8 @@ class ZkMasterElection implements Election{
     private String connectString;
     @Setter(AccessLevel.PACKAGE)
     private String electNodeName;
+    @Setter(AccessLevel.PACKAGE)
+    private MasterElectAlgorithm masterElectAlgorithm;
     private volatile ZooKeeper zk;
     
     @Override
@@ -62,7 +65,7 @@ class ZkMasterElection implements Election{
     }
 
     protected void electMaster(final MasterElect elect) {
-        Optional<String> leader = Optional.empty();
+        Optional<ElectionNode> leader = Optional.empty();
         do {
             if(zk == null) break;
             List<String> children = null;
@@ -71,17 +74,12 @@ class ZkMasterElection implements Election{
             } catch (KeeperException | InterruptedException e) {
                 throw new ElectionException(Result.error(), e);
             }
-            leader = children.stream().sorted((one, two)->{
-                Long oneNum = Long.valueOf(one.substring(one.lastIndexOf('_') + 1 , one.length()));
-                Long twoNum = Long.valueOf(two.substring(two.lastIndexOf('_') + 1 , two.length()));
-                
-                return Long.compare(oneNum, twoNum);
-            }).findFirst();
+            leader = masterElectAlgorithm.findMaster(findAllNodes(children));
             if(!leader.isPresent()) continue;
             
             Stat leaderStat = null;
             try {
-                leaderStat = zk.exists(fullPath(leader.get()) , event -> {
+                leaderStat = zk.exists(fullPath(leader.get().getName()) , event -> {
                     switch (event.getType()) {
                     case NodeDeleted:
                         electMaster(elect);
@@ -99,23 +97,11 @@ class ZkMasterElection implements Election{
             else break;
         } while(true);
         
-        log.info("master is {}", leader.get());
-        byte[] leaderData = null;
-        try {
-            leaderData = zk.getData(fullPath(leader.get()) , false , null);
-        } catch (KeeperException | InterruptedException e) {
-            throw new ElectionException(Result.error() , e);
-        }
-        if(leaderData != null) {
-            ElectionNode obj = readObject(leaderData);
-            obj.setName(leader.get());
-            elect.onMasterChange(obj);
-        }
+        elect.onMasterChange(leader.get());
     }
 
     protected void refreshElectNodes(final MasterElect elect) {
         if(zk == null) return;
-        List<ElectionNode> nodes = Lists.newArrayList();
         List<String> children = null;
         try {
             children = zk.getChildren(leaderElectPath , (event)->{
@@ -133,6 +119,12 @@ class ZkMasterElection implements Election{
         } catch (KeeperException | InterruptedException e) {
             throw new ElectionException(Result.error() , e);
         }
+        List<ElectionNode> nodes = findAllNodes(children);
+        elect.onElectMembersChange(nodes);
+    }
+
+    protected List<ElectionNode> findAllNodes(List<String> children) {
+        List<ElectionNode> nodes = Lists.newArrayList();
         for(String child: children) {
             byte[] nodeData = null;
             try {
@@ -145,7 +137,7 @@ class ZkMasterElection implements Election{
             obj.setName(child);
             nodes.add(obj);
         }
-        elect.onElectMembersChange(nodes);
+        return nodes;
     }
 
     protected ElectionNode readObject(byte[] nodeData) {
