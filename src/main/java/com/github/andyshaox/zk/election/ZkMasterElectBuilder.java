@@ -15,6 +15,7 @@ import com.github.andyshao.util.EntityOperation;
  * @author andy.shao
  *
  */
+@SuppressWarnings("unused")
 public class ZkMasterElectBuilder{
     public static final String defaultLeaderElectPath = "/master_election";
     private String leaderElectPath = defaultLeaderElectPath;
@@ -68,12 +69,7 @@ public class ZkMasterElectBuilder{
     
     public Election build() {
         ZkMasterElection result = new ZkMasterElection();
-        result.setLeaderElectPath(leaderElectPath);
-        result.setConnectString(connectString);
-        result.setSessionTimeOut(sessionTimeOut);
-        result.setElectNodeName(electNodeName);
-        result.setMasterElectAlgorithm(masterElectAlgorithm);
-        result.setZk(zk);
+        EntityOperation.copyProperties(this , result);
         return result;
     }
 }

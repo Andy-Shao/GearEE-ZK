@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import com.github.andyshao.election.ElectionNode;
 import com.github.andyshao.election.MasterElectAlgorithm;
+import com.github.andyshao.lang.StringOperation;
 
 /**
  * 
@@ -22,11 +23,7 @@ public class ZkMasterElectAlgorithm implements MasterElectAlgorithm {
         return nodes.stream()
                 .filter(item -> item != null)
                 .filter(item -> !(item.getName() == null || item.getName().trim().isEmpty()))
-                .sorted((left, right) -> Long.compare(takeNum(left.getName()) , takeNum(right.getName())))
+                .sorted((left, right) -> StringOperation.COMPARATOR.compare(left.getName() , right.getName()))
                 .findFirst();
-    }
-
-    static final Long takeNum(String name) {
-        return Long.valueOf(name.substring(name.lastIndexOf('_') + 1 , name.length()));
     }
 }
