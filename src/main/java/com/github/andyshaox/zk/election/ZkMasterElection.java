@@ -7,15 +7,12 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
 
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.KeeperException.NodeExistsException;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.Watcher.Event.EventType;
-import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.data.Stat;
 
 import com.github.andyshao.election.Election;
@@ -23,8 +20,7 @@ import com.github.andyshao.election.ElectionException;
 import com.github.andyshao.election.ElectionNode;
 import com.github.andyshao.election.MasterElect;
 import com.github.andyshao.election.MasterElectAlgorithm;
-import com.github.andyshao.exception.Result;
-import com.google.common.base.Splitter;
+import com.github.andyshaox.zk.utils.ZooKeepers;
 import com.google.common.collect.Lists;
 
 import lombok.AccessLevel;
@@ -41,16 +37,12 @@ import lombok.extern.slf4j.Slf4j;
  *
  */
 @Slf4j
-class ZkMasterElection implements Election{
-    @Setter(AccessLevel.PACKAGE)
+@Setter(AccessLevel.PACKAGE)
+public class ZkMasterElection implements Election{
     private String leaderElectPath;
-    @Setter(AccessLevel.PACKAGE)
     private int sessionTimeOut;
-    @Setter(AccessLevel.PACKAGE)
     private String connectString;
-    @Setter(AccessLevel.PACKAGE)
     private String electNodeName;
-    @Setter(AccessLevel.PACKAGE)
     private MasterElectAlgorithm masterElectAlgorithm;
     private volatile ZooKeeper zk;
     
@@ -72,7 +64,7 @@ class ZkMasterElection implements Election{
             try {
                 children = zk.getChildren(leaderElectPath , false);
             } catch (KeeperException | InterruptedException e) {
-                throw new ElectionException(Result.error(), e);
+                throw new ElectionException(e);
             }
             leader = masterElectAlgorithm.findMaster(findAllNodes(children));
             if(!leader.isPresent()) continue;
@@ -90,7 +82,7 @@ class ZkMasterElection implements Election{
                     }
                 });
             } catch (KeeperException | InterruptedException e) {
-                throw new ElectionException(Result.error() , e);
+                throw new ElectionException(e);
             }
             
             if(leaderStat == null) continue;
@@ -117,7 +109,7 @@ class ZkMasterElection implements Election{
                     break;
                 }});
         } catch (KeeperException | InterruptedException e) {
-            throw new ElectionException(Result.error() , e);
+            throw new ElectionException(e);
         }
         List<ElectionNode> nodes = findAllNodes(children);
         elect.onElectMembersChange(nodes);
@@ -146,7 +138,7 @@ class ZkMasterElection implements Election{
                 ObjectInputStream input = new ObjectInputStream(array);){
             node = (ElectionNode) input.readObject();
         } catch (IOException | ClassNotFoundException e) {
-            throw new ElectionException(Result.error() , e);
+            throw new ElectionException(e);
         }
         return node;
     }
@@ -156,7 +148,7 @@ class ZkMasterElection implements Election{
     }
 
     protected void registe(MasterElect elect) {
-        if(elect.selfNode() == null) throw new ElectionException(Result.errorMsg("selfNode cannot be null"));
+        if(elect.selfNode() == null) throw new ElectionException("selfNode cannot be null");
         try {
             byte[] bs = null;
             try(ByteArrayOutputStream array = new ByteArrayOutputStream();
@@ -165,31 +157,25 @@ class ZkMasterElection implements Election{
                 out.flush();
                 bs = array.toByteArray();
             } catch (IOException e) {
-                throw new ElectionException(Result.error() , e);
+                throw new ElectionException(e);
             }
-            String nodeName = zk.create(String.format("%s/%s" , leaderElectPath, "_candidate_") , bs , ZooDefs.Ids.OPEN_ACL_UNSAFE, 
+            String nodeName = zk.create(String.format("%s/%s" , leaderElectPath, electNodeName) , bs , ZooDefs.Ids.OPEN_ACL_UNSAFE, 
                 CreateMode.EPHEMERAL_SEQUENTIAL);
             elect.selfNode().setName(nodeName);
         } catch (KeeperException | InterruptedException e) {
-            throw new ElectionException(Result.error() , e);
+            throw new ElectionException(e);
         }
     }
 
     protected void createAllPath() {
-        List<String> pathes = computePaths(Splitter.on('/').omitEmptyStrings().trimResults().splitToList(leaderElectPath));
-        for(String path : pathes) {
-            Stat stat;
-            try {
-                stat = zk.exists(path , false);
-                if(stat == null) zk.create(path , "".getBytes() , ZooDefs.Ids.OPEN_ACL_UNSAFE , CreateMode.PERSISTENT);
-            } catch(NodeExistsException e) {
-            } catch (KeeperException | InterruptedException e) {
-                throw new ElectionException(Result.error(), e);
-            }
+        try {
+            ZooKeepers.createPathRecursively(this.zk , this.leaderElectPath);
+        } catch (KeeperException | InterruptedException e) {
+            throw new ElectionException(e);
         }
     }
-    
-    protected static List<String> computePaths(List<String> input) {
+
+    public static List<String> computePaths(List<String> input) {
         List<String> result = Lists.newArrayList();
         for(int i=0; i<input.size(); i++) {
             result.add(computePath(input , i));
@@ -205,26 +191,10 @@ class ZkMasterElection implements Election{
 
     protected synchronized ZooKeeper connectZk() {
         if(zk != null) return zk;
-        final CountDownLatch countDownLatch = new CountDownLatch(1);
         try {
-            return zk = new ZooKeeper(connectString , sessionTimeOut , (event)->{
-                final KeeperState keeperState = event.getState();
-                switch(keeperState) {
-                case SyncConnected:
-                    countDownLatch.countDown();
-                    break;
-                default:
-                    break;
-                }
-            });
-        } catch (IOException e) {
-            throw new ElectionException(Result.error(), e);
-        } finally {
-            try {
-                countDownLatch.await();
-            } catch (InterruptedException e) {
-                throw new ElectionException(Result.error() , e);
-            }
+            return zk = ZooKeepers.connect(connectString , sessionTimeOut);
+        } catch (InterruptedException | IOException e) {
+            throw new ElectionException(e);
         }
     }
 
@@ -234,7 +204,7 @@ class ZkMasterElection implements Election{
             try {
                 zk.close();
             } catch (InterruptedException e) {
-                throw new ElectionException(Result.error() , e);
+                throw new ElectionException(e);
             }
             zk = null;
         }
