@@ -1,4 +1,4 @@
-package com.github.andyshaox.election;
+package com.github.andyshaox.zk.election;
 
 import com.github.andyshao.election.Election;
 import com.github.andyshao.util.EntityOperation;

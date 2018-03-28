@@ -1,4 +1,4 @@
-package com.github.andyshaox.election;
+package com.github.andyshaox.zk.election;
 
 import java.util.Arrays;
 import java.util.List;
@@ -8,6 +8,7 @@ import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.github.andyshaox.zk.election.ZkMasterElection;
 import com.google.common.base.Splitter;
 
 public class ZkMasterElectionTest {

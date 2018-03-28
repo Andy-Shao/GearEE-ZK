@@ -1,4 +1,4 @@
-package com.github.andyshaox.election;
+package com.github.andyshaox.zk.election;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
