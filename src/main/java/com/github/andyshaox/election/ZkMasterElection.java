@@ -64,6 +64,7 @@ class ZkMasterElection implements Election{
     protected void electMaster(final MasterElect elect) {
         Optional<String> leader = Optional.empty();
         do {
+            if(zk == null) break;
             List<String> children = null;
             try {
                 children = zk.getChildren(leaderElectPath , false);
@@ -113,6 +114,7 @@ class ZkMasterElection implements Election{
     }
 
     protected void refreshElectNodes(final MasterElect elect) {
+        if(zk == null) return;
         List<ElectionNode> nodes = Lists.newArrayList();
         List<String> children = null;
         try {
@@ -162,6 +164,7 @@ class ZkMasterElection implements Election{
     }
 
     protected void registe(MasterElect elect) {
+        if(elect.selfNode() == null) throw new ElectionException(Result.errorMsg("selfNode cannot be null"));
         try {
             byte[] bs = null;
             try(ByteArrayOutputStream array = new ByteArrayOutputStream();
