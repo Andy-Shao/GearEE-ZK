@@ -76,7 +76,7 @@ class ZkMasterElection implements Election{
                 
                 return Long.compare(oneNum, twoNum);
             }).findFirst();
-            if(leader.isPresent()) continue;
+            if(!leader.isPresent()) continue;
             
             Stat leaderStat = null;
             try {
@@ -98,14 +98,18 @@ class ZkMasterElection implements Election{
             else break;
         } while(true);
         
-        log.debug("master is {}", leader.get());
+        log.info("master is {}", leader.get());
         byte[] leaderData = null;
         try {
             leaderData = zk.getData(fullPath(leader.get()) , false , null);
         } catch (KeeperException | InterruptedException e) {
             throw new ElectionException(Result.error() , e);
         }
-        if(leaderData != null) elect.onMasterChange(readObject(leaderData));
+        if(leaderData != null) {
+            ElectionNode obj = readObject(leaderData);
+            obj.setName(leader.get());
+            elect.onMasterChange(obj);
+        }
     }
 
     protected void refreshElectNodes(final MasterElect elect) {
@@ -135,7 +139,9 @@ class ZkMasterElection implements Election{
                 log.warn("Try get child node has an error" , e);
                 continue;
             }
-            nodes.add(readObject(nodeData));
+            ElectionNode obj = readObject(nodeData);
+            obj.setName(child);
+            nodes.add(obj);
         }
         elect.onElectMembersChange(nodes);
     }
