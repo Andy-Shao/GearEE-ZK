@@ -15,11 +15,11 @@ import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.data.Stat;
 
-import com.github.andyshao.election.Election;
-import com.github.andyshao.election.ElectionException;
-import com.github.andyshao.election.ElectionNode;
-import com.github.andyshao.election.MasterElect;
-import com.github.andyshao.election.MasterElectAlgorithm;
+import com.github.andyshao.distribution.election.Election;
+import com.github.andyshao.distribution.election.ElectionException;
+import com.github.andyshao.distribution.election.ElectionNode;
+import com.github.andyshao.distribution.election.MasterElect;
+import com.github.andyshao.distribution.election.MasterElectAlgorithm;
 import com.github.andyshaox.zk.utils.ZooKeepers;
 import com.google.common.collect.Lists;
 

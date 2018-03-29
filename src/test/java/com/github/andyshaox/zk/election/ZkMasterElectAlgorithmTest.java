@@ -8,7 +8,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.github.andyshao.election.ElectionNode;
+import com.github.andyshao.distribution.election.ElectionNode;
 import com.github.andyshao.lang.number.ByteLevel;
 import com.github.andyshao.lang.number.SimpleByteSize;
 import com.google.common.collect.Lists;

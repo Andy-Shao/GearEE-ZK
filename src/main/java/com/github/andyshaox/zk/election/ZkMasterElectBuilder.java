@@ -2,8 +2,8 @@ package com.github.andyshaox.zk.election;
 
 import org.apache.zookeeper.ZooKeeper;
 
-import com.github.andyshao.election.Election;
-import com.github.andyshao.election.MasterElectAlgorithm;
+import com.github.andyshao.distribution.election.Election;
+import com.github.andyshao.distribution.election.MasterElectAlgorithm;
 import com.github.andyshao.util.EntityOperation;
 
 /**

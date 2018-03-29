@@ -3,8 +3,8 @@ package com.github.andyshaox.zk.election;
 import java.util.List;
 import java.util.Optional;
 
-import com.github.andyshao.election.ElectionNode;
-import com.github.andyshao.election.MasterElectAlgorithm;
+import com.github.andyshao.distribution.election.ElectionNode;
+import com.github.andyshao.distribution.election.MasterElectAlgorithm;
 import com.github.andyshao.lang.StringOperation;
 
 /**

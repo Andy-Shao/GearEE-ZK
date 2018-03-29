@@ -5,9 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.github.andyshao.election.Election;
-import com.github.andyshao.election.ElectionNode;
-import com.github.andyshao.election.MasterElect;
+import com.github.andyshao.distribution.election.Election;
+import com.github.andyshao.distribution.election.ElectionNode;
+import com.github.andyshao.distribution.election.MasterElect;
 import com.github.andyshao.lang.number.ByteLevel;
 import com.github.andyshao.lang.number.SimpleByteSize;
 
