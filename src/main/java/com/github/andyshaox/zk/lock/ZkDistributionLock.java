@@ -2,6 +2,7 @@ package com.github.andyshaox.zk.lock;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
@@ -14,18 +15,15 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.data.Stat;
 
 import com.github.andyshao.lock.DistributionLock;
 import com.github.andyshao.lock.ExpireMode;
 import com.github.andyshao.lock.LockException;
 import com.github.andyshaox.zk.utils.ZooKeepers;
+import com.google.common.base.Splitter;
 
 import lombok.AccessLevel;
 import lombok.Setter;
-import rx.Observable;
-import rx.Subscriber;
-import rx.schedulers.Schedulers;
 
 /**
  * 
@@ -38,7 +36,7 @@ import rx.schedulers.Schedulers;
  */
 public class ZkDistributionLock implements DistributionLock {
     private volatile LockOwer lockOwner = this.new LockOwer();
-    private volatile String nodeName;
+    private final ThreadLocal<String> nodeName = new ThreadLocal<>();
     @Setter(value = AccessLevel.PACKAGE)
     private volatile ZooKeeper zk;
     @Setter(value = AccessLevel.PACKAGE)
@@ -92,43 +90,61 @@ public class ZkDistributionLock implements DistributionLock {
         }
     }
     
-    protected boolean tryAcquireLock(final ExpireMode mode , int times) throws InterruptedException {
-        Long l = new Date().getTime();
-        switch(mode) {
-        case MILISECONDS:
-            l = l + times;
-            break;
-        case SECONDS:
-            l = l + (times * 1000);
-            break;
-                
-        case IGNORE:
-            l = Long.MAX_VALUE;
-        default :
-            break;
-        }
+    protected boolean tryAcquireLock(final ExpireMode mode, final int times, final Long timeSign) throws InterruptedException {
         if(this.lockOwner.isOwner()) {
-            this.lockOwner.setTimeSign(l);
+            this.lockOwner.setTimeSign(timeSign);
             return this.lockOwner.increment();
         }
-        boolean hasLock = false;
+        final AtomicBoolean hasLock = new AtomicBoolean(false);
         try {
-            if(zk.exists(nodeName , false) == null) nodeName = zk.create(fullNodePath() , "".getBytes() , ZooDefs.Ids.OPEN_ACL_UNSAFE , CreateMode.EPHEMERAL_SEQUENTIAL);
+            register();
             Optional<String> lockOwnerName = zk.getChildren(lockPath , false).stream().sorted().findFirst();
-            if(Objects.equals(nodeName , lockOwnerName.get())) hasLock = true;
-            else hasLock = false;
+            if(Objects.equals(nodeName.get() , lockOwnerName.get())) hasLock.set(true);
+            else hasLock.set(false);;
         } catch (KeeperException e) {
             throw new LockException(e);
         }
-        if(hasLock) {
-            this.lockOwner.setTimeSign(l);
+        if(hasLock.get()) {
+            this.lockOwner.setTimeSign(timeSign);
             this.lockOwner.increment();
         }
-        return hasLock;
+        return hasLock.get();
     }
     
-    protected boolean acquireLock(final ExpireMode mode , int times) throws InterruptedException {
+    protected boolean acquireLock(final ExpireMode mode , int times, Long timeSign) throws InterruptedException {
         final CountDownLatch countDownLatch = new CountDownLatch(1);
+        if(this.lockOwner.isOwner()) {
+            this.lockOwner.setTimeSign(timeSign);
+            return this.lockOwner.increment();
+        }
+        final AtomicBoolean hasLock = new AtomicBoolean(false);
+        final AtomicBoolean hasReturn = new AtomicBoolean(false);
+        try {
+            register();
+            waitLock(countDownLatch , hasLock, hasReturn);
+        } catch (KeeperException e) {
+            throw new LockException(e);
+        }
+        switch (mode) {
+        case MILISECONDS:
+            countDownLatch.await(times , TimeUnit.MILLISECONDS);
+            break;
+        case SECONDS:
+            countDownLatch.await(times , TimeUnit.SECONDS);
+            break;
+        default:
+            countDownLatch.await();
+            break;
+        }
+        hasReturn.set(true);
+        if(hasLock.get()) {
+            this.lockOwner.setTimeSign(timeSign);
+            this.lockOwner.increment();
+        }
+        return hasLock.get();
+    }
+
+    protected Long calculateTimeSign(final ExpireMode mode , int times) {
         Long l = new Date().getTime();
         switch(mode) {
         case MILISECONDS:
@@ -143,45 +159,31 @@ public class ZkDistributionLock implements DistributionLock {
         default :
             break;
         }
-        if(this.lockOwner.isOwner()) {
-            this.lockOwner.setTimeSign(l);
-            return this.lockOwner.increment();
+        return l;
+    }
+
+    protected void register() throws KeeperException , InterruptedException {
+        if(nodeName.get() == null) {
+            synchronized (this) {
+                if(nodeName.get() == null || (zk.exists(String.format("%s/%s" , lockPath, nodeName.get()) , false) == null)) {
+                    String fullPath = zk.create(fullNodePath() , "".getBytes() , ZooDefs.Ids.OPEN_ACL_UNSAFE , CreateMode.EPHEMERAL_SEQUENTIAL);
+                    List<String> pathes = Splitter.on('/').splitToList(fullPath);
+                    nodeName.set(pathes.get(pathes.size() - 1));
+                }
+            }
         }
-        final AtomicBoolean hasLock = new AtomicBoolean(false);
-        final AtomicBoolean hasReturn = new AtomicBoolean(false);
-        try {
-            if(zk.exists(String.format("%s/%s" , lockPath, nodeName) , false) == null) nodeName = zk.create(fullNodePath() , "".getBytes() , ZooDefs.Ids.OPEN_ACL_UNSAFE , CreateMode.EPHEMERAL_SEQUENTIAL);
-            waitLock(countDownLatch , hasLock, hasReturn);
-        } catch (KeeperException e) {
-            throw new LockException(e);
-        }
-        if(hasLock.get()) {
-            this.lockOwner.setTimeSign(l);
-            this.lockOwner.increment();
-        }
-        switch (mode) {
-        case MILISECONDS:
-            countDownLatch.await(times , TimeUnit.MILLISECONDS);
-            break;
-        case SECONDS:
-            countDownLatch.await(times , TimeUnit.SECONDS);
-            break;
-        default:
-            countDownLatch.await();
-            break;
-        }
-        hasReturn.set(true);
-        return hasLock.get();
     }
 
     protected void waitLock(final CountDownLatch countDownLatch , final AtomicBoolean hasLock, final AtomicBoolean hasReturn) throws KeeperException , InterruptedException {
         Optional<String> lockOwnerName = zk.getChildren(lockPath , false).stream().sorted().findFirst();
-        if(Objects.equals(nodeName , lockOwnerName.get())) {
+        if(Objects.equals(nodeName.get() , lockOwnerName.get())) {
             hasLock.set(true);
             countDownLatch.countDown();
         } else {
             hasLock.set(false);
+            final String nodeNm = this.nodeName.get();
             zk.exists(String.format("%s/%s" , lockPath, lockOwnerName.get()) , watch -> {
+                nodeName.set(nodeNm);
                 EventType type = watch.getType();
                 switch (type) {
                 case NodeDeleted:
@@ -190,7 +192,6 @@ public class ZkDistributionLock implements DistributionLock {
                     } catch (KeeperException | InterruptedException e) {
                         throw new LockException(e);
                     }
-                    countDownLatch.countDown();
                     break;
 
                 default:
@@ -221,7 +222,8 @@ public class ZkDistributionLock implements DistributionLock {
     public synchronized boolean tryUnlock() {
         if(this.lockOwner.canUnlock()) {
             try {
-                zk.delete(String.format("%s/%s" , lockPath, nodeName) , -1);
+                zk.delete(String.format("%s/%s" , lockPath, nodeName.get()) , -1);
+                nodeName.set(null);
             } catch (InterruptedException | KeeperException e1) {
                 throw new LockException(e1);
             }
@@ -237,12 +239,12 @@ public class ZkDistributionLock implements DistributionLock {
 
     @Override
     public void lock(ExpireMode mode , int times) {
-        //TODO has bugs
-        while(true) {
+        final Long timeSign = calculateTimeSign(mode , times);
+        while(new Date().getTime() < timeSign) {
             try {
                 connectZk();
                 createPathes();
-                acquireLock(mode , times);
+                acquireLock(mode , times, timeSign);
                 return;
             } catch (InterruptedException e) {}
         }
@@ -257,7 +259,7 @@ public class ZkDistributionLock implements DistributionLock {
     public void lockInterruptibly(ExpireMode mode , int times) throws InterruptedException {
         connectZk();
         createPathes();
-        acquireLock(mode , times);
+        acquireLock(mode , times, calculateTimeSign(mode , times));
     }
 
     @Override
@@ -267,15 +269,17 @@ public class ZkDistributionLock implements DistributionLock {
 
     @Override
     public boolean tryLock(ExpireMode mode , int times) {
-        
-        //TODO has bugs
-        try {
-            connectZk();
-            createPathes();
-            return tryAcquireLock(mode , times);
-        } catch (InterruptedException e) {
-            return false;
+        final Long timeSign = calculateTimeSign(mode , times);
+        while(new Date().getTime() < timeSign) {
+            try {
+                connectZk();
+                createPathes();
+                return tryAcquireLock(mode , times, timeSign);
+            } catch (InterruptedException e) {
+                continue;
+            }
         }
+        return false;
     }
 
     private void createPathes() throws InterruptedException {
