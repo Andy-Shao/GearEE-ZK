@@ -26,7 +26,7 @@ public class ZkDistributionLockTest {
     @Test
     public void testTimeTask() throws InterruptedException {
         final AtomicBoolean hasDoneIt = new AtomicBoolean(false);
-        Observable.<Void>create(v -> {
+        Observable.<Void>unsafeCreate(v -> {
             try {
                 TimeUnit.MICROSECONDS.sleep(100);
                 v.onCompleted();
