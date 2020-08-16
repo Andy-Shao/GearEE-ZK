@@ -1,14 +1,13 @@
 package com.github.andyshaox.zk.lock;
 
+import com.github.andyshao.lock.ExpireMode;
+import com.github.andyshaox.zk.utils.ZooKeepers;
+import org.apache.zookeeper.ZooKeeper;
+import org.junit.jupiter.api.Assertions;
+
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
-import org.apache.zookeeper.ZooKeeper;
-import org.junit.Assert;
-
-import com.github.andyshao.lock.ExpireMode;
-import com.github.andyshaox.zk.utils.ZooKeepers;
 
 public class ZkDistributionLockIntegrationTest {
     public static void testTryLock() throws InterruptedException, IOException {
@@ -71,7 +70,8 @@ public class ZkDistributionLockIntegrationTest {
                 try {
                     forOne.await();
                 } catch (InterruptedException e) {
-                    Assert.fail();
+//                    Assert.fail();
+                    Assertions.fail();
                 }
                 lock.unlock();
             }
@@ -81,9 +81,11 @@ public class ZkDistributionLockIntegrationTest {
                 forTwo.await();
                 boolean hasLock = lock.tryLock();
                 forOne.countDown();
-                Assert.assertFalse(hasLock);
+//                Assert.assertFalse(hasLock);
+                org.assertj.core.api.Assertions.assertThat(hasLock).isFalse();
             } catch (InterruptedException e) {
-                Assert.fail();
+//                Assert.fail();
+                Assertions.fail();
             } finally {
                 lock.unlock();
             }

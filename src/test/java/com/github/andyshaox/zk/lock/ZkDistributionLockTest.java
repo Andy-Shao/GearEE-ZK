@@ -1,5 +1,10 @@
 package com.github.andyshaox.zk.lock;
 
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.Test;
+import rx.Observable;
+import rx.Observer;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -7,20 +12,14 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.assertj.core.api.Assertions;
-import org.junit.Assert;
-import org.junit.Test;
-
-import rx.Observable;
-import rx.Observer;
-
 public class ZkDistributionLockTest {
     @Test
     public void testSort() {
         List<String> ls = Arrays.asList("lock-003", "lock-002", "lock-007", "lock-001", "lock-009");
         Optional<String> lowest = ls.stream().sorted().findFirst();
-        Assert.assertTrue(lowest.isPresent());
+//        Assert.assertTrue(lowest.isPresent());
 //        Assert.assertThat(lowest.get() , Matchers.is("lock-001"));
+        Assertions.assertThat(lowest.isPresent()).isTrue();
         Assertions.assertThat(lowest.get()).isEqualTo("lock-001");
     }
     
@@ -43,17 +42,20 @@ public class ZkDistributionLockTest {
 
             @Override
             public void onError(Throwable e) {
-                Assert.fail();
+//                Assert.fail();
+                org.junit.jupiter.api.Assertions.fail();
             }
 
             @Override
             public void onNext(Void t) {
-                Assert.fail();
+//                Assert.fail();
+                org.junit.jupiter.api.Assertions.fail();
             }
             
         });
         TimeUnit.MICROSECONDS.sleep(1000);
-        Assert.assertTrue(hasDoneIt.get());
+//        Assert.assertTrue(hasDoneIt.get());
+        Assertions.assertThat(hasDoneIt.get()).isTrue();
     }
     
     @Test

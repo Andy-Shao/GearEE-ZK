@@ -1,13 +1,12 @@
 package com.github.andyshaox.zk.election;
 
+import com.google.common.base.Splitter;
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.Test;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-
-import org.assertj.core.api.Assertions;
-import org.junit.Test;
-
-import com.google.common.base.Splitter;
 
 public class ZkMasterElectionTest {
     @Test

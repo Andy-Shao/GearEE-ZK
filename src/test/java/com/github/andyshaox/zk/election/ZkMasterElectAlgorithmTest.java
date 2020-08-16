@@ -1,21 +1,20 @@
 package com.github.andyshaox.zk.election;
 
-import java.util.List;
-import java.util.Optional;
-
-import org.assertj.core.api.Assertions;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.github.andyshao.distribution.election.ElectionNode;
 import com.github.andyshao.lang.number.ByteLevel;
 import com.github.andyshao.lang.number.SimpleByteSize;
 import com.google.common.collect.Lists;
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Optional;
 
 public class ZkMasterElectAlgorithmTest {
     private List<ElectionNode> nodes;
     
-    @Before
+    @BeforeEach
     public void before() {
         nodes = Lists.newArrayList();
         ElectionNode e = new ElectionNode();
