@@ -7,7 +7,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.hamcrest.Matchers;
+import org.assertj.core.api.Assertions;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -20,7 +20,8 @@ public class ZkDistributionLockTest {
         List<String> ls = Arrays.asList("lock-003", "lock-002", "lock-007", "lock-001", "lock-009");
         Optional<String> lowest = ls.stream().sorted().findFirst();
         Assert.assertTrue(lowest.isPresent());
-        Assert.assertThat(lowest.get() , Matchers.is("lock-001"));
+//        Assert.assertThat(lowest.get() , Matchers.is("lock-001"));
+        Assertions.assertThat(lowest.get()).isEqualTo("lock-001");
     }
     
     @Test
@@ -58,9 +59,11 @@ public class ZkDistributionLockTest {
     @Test
     public void testCountDown() throws InterruptedException {
         CountDownLatch countDownLatch = new CountDownLatch(1);
-        Assert.assertThat(countDownLatch.getCount() , Matchers.is(1L));
+//        Assert.assertThat(countDownLatch.getCount() , Matchers.is(1L));
+        Assertions.assertThat(countDownLatch.getCount()).isEqualTo(1L);
         countDownLatch.countDown();
-        Assert.assertThat(countDownLatch.getCount() , Matchers.is(0L));
+//        Assert.assertThat(countDownLatch.getCount() , Matchers.is(0L));
+        Assertions.assertThat(countDownLatch.getCount()).isEqualTo(0L);
         countDownLatch.await();
     }
 }

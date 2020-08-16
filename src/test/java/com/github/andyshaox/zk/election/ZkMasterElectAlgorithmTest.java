@@ -3,8 +3,7 @@ package com.github.andyshaox.zk.election;
 import java.util.List;
 import java.util.Optional;
 
-import org.hamcrest.Matchers;
-import org.junit.Assert;
+import org.assertj.core.api.Assertions;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -39,7 +38,9 @@ public class ZkMasterElectAlgorithmTest {
     public void testElect() {
         ZkMasterElectAlgorithm algorithm = new ZkMasterElectAlgorithm();
         Optional<ElectionNode> master = algorithm.findMaster(nodes);
-        Assert.assertTrue(master.isPresent());
-        Assert.assertThat(master.get().getName() , Matchers.is("node_001"));
+//        Assert.assertTrue(master.isPresent());
+//        Assert.assertThat(master.get().getName() , Matchers.is("node_001"));
+        Assertions.assertThat(master.isPresent()).isTrue();
+        Assertions.assertThat(master.get().getName()).isEqualTo("node_001");
     }
 }
