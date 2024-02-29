@@ -1,5 +1,18 @@
 package com.github.andyshaox.zk.lock;
 
+import com.github.andyshao.lock.DistributionLock;
+import com.github.andyshao.lock.ExpireMode;
+import com.github.andyshao.lock.LockException;
+import com.github.andyshaox.zk.utils.ZooKeepers;
+import com.google.common.base.Splitter;
+import lombok.AccessLevel;
+import lombok.Setter;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.Watcher.Event.EventType;
+import org.apache.zookeeper.ZooDefs;
+import org.apache.zookeeper.ZooKeeper;
+
 import java.io.IOException;
 import java.util.Date;
 import java.util.List;
@@ -9,21 +22,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.Watcher.Event.EventType;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.ZooKeeper;
-
-import com.github.andyshao.lock.DistributionLock;
-import com.github.andyshao.lock.ExpireMode;
-import com.github.andyshao.lock.LockException;
-import com.github.andyshaox.zk.utils.ZooKeepers;
-import com.google.common.base.Splitter;
-
-import lombok.AccessLevel;
-import lombok.Setter;
 
 /**
  * 
@@ -126,7 +124,7 @@ public class ZkDistributionLock implements DistributionLock {
             throw new LockException(e);
         }
         switch (mode) {
-        case MILISECONDS:
+            case MILLISECONDS:
             countDownLatch.await(times , TimeUnit.MILLISECONDS);
             break;
         case SECONDS:
@@ -147,7 +145,7 @@ public class ZkDistributionLock implements DistributionLock {
     protected Long calculateTimeSign(final ExpireMode mode , int times) {
         Long l = new Date().getTime();
         switch(mode) {
-        case MILISECONDS:
+            case MILLISECONDS:
             l = l + times;
             break;
         case SECONDS:
